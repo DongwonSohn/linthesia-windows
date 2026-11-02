@@ -30,14 +30,39 @@ function Invoke-Checked([string]$Program, [string[]]$Arguments) {
     }
 }
 
+function ConvertTo-CMakePath([string]$Value) {
+    # CMake writes compiler paths into quoted CMake source files. Native Windows
+    # backslashes can become escapes there (for example, D:\a contains \a).
+    return $Value.Replace('\', '/')
+}
+
 $oldPath = $env:PATH
 try {
     $env:PATH = "$toolBin;$oldPath"
+
+    # Recover a previous failed configure without discarding the build cache.
+    # CMake reads this generated RC metadata before it can regenerate the file.
+    $metadataRoot = Join-Path $buildRoot 'CMakeFiles'
+    if (Test-Path -LiteralPath $metadataRoot) {
+        foreach ($directory in (Get-ChildItem -LiteralPath $metadataRoot -Directory)) {
+            $rcMetadata = Join-Path $directory.FullName 'CMakeRCCompiler.cmake'
+            if (Test-Path -LiteralPath $rcMetadata) {
+                $metadata = Get-Content -LiteralPath $rcMetadata -Raw
+                if ($metadata -match '(?m)^set\(CMAKE_RC_COMPILER\s+"([^"]*)"') {
+                    $cachedCompiler = $Matches[1]
+                    if ($cachedCompiler -match '(?<!\\)\\(?!\\)') {
+                        Remove-Item -LiteralPath $rcMetadata -Force
+                    }
+                }
+            }
+        }
+    }
+
     Invoke-Checked $cmake @('-S', $sourceRoot, '-B', $buildRoot, '-G', 'Ninja',
-        "-DCMAKE_BUILD_TYPE=$Configuration", "-DCMAKE_PREFIX_PATH=$ucrtRoot",
-        "-DCMAKE_CXX_COMPILER=$(Join-Path $toolBin 'g++.exe')",
-        "-DCMAKE_RC_COMPILER=$(Join-Path $toolBin 'windres.exe')",
-        "-DCMAKE_MAKE_PROGRAM=$(Join-Path $toolBin 'ninja.exe')")
+        "-DCMAKE_BUILD_TYPE=$Configuration", "-DCMAKE_PREFIX_PATH:PATH=$(ConvertTo-CMakePath $ucrtRoot)",
+        "-DCMAKE_CXX_COMPILER:FILEPATH=$(ConvertTo-CMakePath (Join-Path $toolBin 'g++.exe'))",
+        "-DCMAKE_RC_COMPILER:FILEPATH=$(ConvertTo-CMakePath (Join-Path $toolBin 'windres.exe'))",
+        "-DCMAKE_MAKE_PROGRAM:FILEPATH=$(ConvertTo-CMakePath (Join-Path $toolBin 'ninja.exe'))")
     Invoke-Checked $cmake @('--build', $buildRoot, '--parallel')
     Invoke-Checked (Join-Path $toolBin 'ctest.exe') @('--test-dir', $buildRoot, '--output-on-failure')
 
