@@ -73,7 +73,8 @@ if(BUILD_TESTING)
   target_include_directories(PortableCore PRIVATE src windows)
   target_compile_definitions(PortableCore PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
   add_test(NAME portable-core COMMAND PortableCore
-    "${CMAKE_CURRENT_SOURCE_DIR}/music/Keyboard_Classics/Fur_Elise-Beethoven.mid")
+    "${CMAKE_CURRENT_SOURCE_DIR}/music/Keyboard_Classics/Fur_Elise-Beethoven.mid"
+    "${CMAKE_CURRENT_SOURCE_DIR}/music/Default/Eve ／ 夜は仄か.mid")
 endif()
 
 install(TARGETS Linthesia RUNTIME DESTINATION .)

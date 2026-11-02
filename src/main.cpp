@@ -528,9 +528,17 @@ int main(int argc, char *argv[]) {
         file_opt[file_opt.length()-1] == '\"')
       file_opt = file_opt.substr(0, file_opt.length() - 1);
     
+    // Open the bundled startup song unless the user chose another MIDI file.
+    // Resolve it from the resource directory so portable installs can move.
+    if (file_opt.empty()) {
+      const string default_song = MUSICDIR + string(u8"/Default/Eve ／ 夜は仄か.mid");
+      if (LinthesiaIsFile(default_song))
+        file_opt = default_song;
+    }
+
     Midi *midi = 0;
 
-    // attempt to open the midi file given on the command line first
+    // Load the selected song; a missing default leaves the song library available.
     if (file_opt != "") {
       try {
         midi = new Midi(Midi::ReadFromFile(file_opt));
@@ -663,8 +671,7 @@ int main(int argc, char *argv[]) {
       state_manager->SetInitialState(new TitleState(state));
     }
     else {
-      // if midi couldn't be opened from command line filename or there
-      // simply was no command line filename, use a song-lib.
+      // If the selected MIDI could not be opened, use the song library.
       state_manager->SetInitialState(new SongLibState(state));
     }
 
