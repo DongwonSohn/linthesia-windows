@@ -5,8 +5,9 @@ Windows 10 1903 이상 또는 Windows 11의 64비트 PC용입니다.
 ## 실행
 
 배포 ZIP을 **모두 압축 해제**한 뒤 `Linthesia.exe`를 더블 클릭하세요.
-압축을 풀면 `Linthesia.exe`와 `app` 폴더 두 항목만 보입니다.
-DLL, 그래픽, 곡, 라이선스는 `app` 안에 모여 있습니다. `app` 폴더를 실행 파일 옆에 그대로 두세요.
+DLL 파일은 `dll` 폴더에 모여 있습니다. `graphics`, `music`, `licenses` 폴더는 실행 파일 옆에 있습니다.
+사용 설명서와 프로그램 라이선스는 `manual/README-ko.md`, `manual/COPYING`에 있습니다.
+실행 파일과 폴더들을 함께 유지하세요.
 실행할 PC에는 MSYS2나 개발 도구를 설치할 필요가 없습니다.
 
 프로그램을 켜면 기본 곡 **Eve ／ 夜は仄か**를 자동으로 불러옵니다.
@@ -17,7 +18,7 @@ Space는 일시 정지/재개, Esc는 이전 화면입니다.
 Input에서 장치를 선택할 수 있습니다. 출력 장치가 없거나 소리가 나지 않으면
 Output에서 Microsoft GS Wavetable Synth 또는 연결한 MIDI 음원을 선택하세요.
 
-다른 곡은 `app/music` 폴더에 `.mid` 또는 `.midi` 파일로 넣을 수 있습니다.
+다른 곡은 `music` 폴더에 `.mid` 또는 `.midi` 파일로 넣을 수 있습니다.
 명령 프롬프트에서도 직접 열 수 있습니다.
 
 ```bat
@@ -64,7 +65,9 @@ Linthesia.exe --reset-lib-path
 - `dist/windows-x64/Linthesia-windows-x64.zip`: 다른 Windows PC로 옮길 배포 파일
 
 빌드 스크립트가 필요한 DLL을 재귀적으로 찾아 함께 넣고, 실행에 필요한
-그래픽·폰트·곡·라이선스도 `app` 폴더에 복사합니다. EXE와 `app` 폴더를 함께 옮기세요.
+DLL은 `dll`, 설명서와 프로그램 라이선스는 `manual`에 복사합니다.
+그래픽·폰트·곡·라이브러리 라이선스는 각각 `graphics`, `music`, `licenses`에 있습니다.
+프로그램을 옮길 때는 실행 파일과 폴더들을 함께 옮기세요.
 `build-windows`와 `dist/windows-x64/Linthesia`는 생성 결과이므로 빌드 때 갱신됩니다.
 
 GitHub에 소스를 올린 경우 **Actions → Windows executable**에서도 빌드할 수 있습니다.
@@ -91,7 +94,7 @@ PC 키보드 MIDI 입력 큐, DLL 포함 여부, `--help`·`--version` 실행과
 인자 처리를 검사합니다. 그래픽 표시와 실제 MIDI 장치의 입력·소리는
 실제 Windows PC에서 확인해야 합니다. 이 프로그램은 OpenGL 드라이버가 필요합니다.
 
-원본 및 수정 프로그램의 라이선스는 GPL-2.0입니다. `COPYING`을 참고하세요.
+원본 및 수정 프로그램의 라이선스는 GPL-2.0입니다. 배포 ZIP의 `manual/COPYING`을 참고하세요.
 함께 제공한 라이브러리의 라이선스는 `licenses` 폴더에 있습니다.
 
 빌드 환경 참고: [MSYS2 UCRT64 환경](https://www.msys2.org/docs/environments/),

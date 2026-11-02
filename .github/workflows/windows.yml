@@ -40,7 +40,7 @@ jobs:
         run: |
           & "$env:LINTHESIA_SOURCE/tests/check-windows-package.ps1" `
             -PackageRoot (Join-Path $env:LINTHESIA_SOURCE 'dist/windows-x64/Linthesia') `
-            -PortableCorePath (Join-Path $env:LINTHESIA_SOURCE 'build-windows/PortableCore.exe') `
+            -LauncherProbePath (Join-Path $env:LINTHESIA_SOURCE 'build-windows/LauncherProbe.dll') `
             -ObjdumpPath '${{ steps.msys2.outputs.msys2-location }}/ucrt64/bin/objdump.exe'
       - uses: actions/upload-artifact@v4
         with:

@@ -1,5 +1,5 @@
-// Native launcher for the portable Windows layout. The application and all of
-// its DLLs/resources live in app/; this executable needs only Windows system DLLs.
+// Native launcher for the portable Windows layout. All application and runtime
+// DLLs live in dll/; this executable needs only Windows system DLLs.
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -13,21 +13,6 @@
 #include <vector>
 
 namespace {
-
-class Handle {
- public:
-  explicit Handle(HANDLE value) : value_(value) {}
-  ~Handle() {
-    if (value_ && value_ != INVALID_HANDLE_VALUE)
-      CloseHandle(value_);
-  }
-  Handle(const Handle&) = delete;
-  Handle& operator=(const Handle&) = delete;
-  HANDLE get() const { return value_; }
-
- private:
-  HANDLE value_;
-};
 
 [[noreturn]] void Fail(const std::wstring& description, DWORD error) {
   wchar_t* text = nullptr;
@@ -44,7 +29,7 @@ class Handle {
   throw message;
 }
 
-std::wstring ApplicationPath() {
+std::wstring ExecutableDirectory() {
   std::vector<wchar_t> buffer(512);
   for (;;) {
     const DWORD length = GetModuleFileNameW(
@@ -56,7 +41,7 @@ std::wstring ApplicationPath() {
       const size_t separator = launcher.find_last_of(L"\\/");
       if (separator == std::wstring::npos)
         throw std::wstring(L"Cannot locate the Linthesia application folder.");
-      return launcher.substr(0, separator) + L"\\app\\Linthesia.exe";
+      return launcher.substr(0, separator);
     }
     if (buffer.size() >= 32768)
       throw std::wstring(L"The Linthesia launcher path is too long.");
@@ -64,99 +49,86 @@ std::wstring ApplicationPath() {
   }
 }
 
-// Quote one argument using the Windows backslash/quotation-mark rules. This
-// preserves empty arguments, embedded quotes and trailing path separators.
-std::wstring QuoteArgument(const std::wstring& argument) {
-  std::wstring quoted(1, L'"');
-  size_t backslashes = 0;
-  for (wchar_t character : argument) {
-    if (character == L'\\') {
-      ++backslashes;
-    } else {
-      quoted.append(character == L'"' ? backslashes * 2 + 1 : backslashes,
-                    L'\\');
-      quoted += character;
-      backslashes = 0;
+// Convert once from Windows' Unicode command line. Mutable, null-terminated
+// buffers stay owned by the launcher while the application borrows argv.
+class Arguments {
+ public:
+  Arguments() {
+    int count = 0;
+    wchar_t** wide = CommandLineToArgvW(GetCommandLineW(), &count);
+    if (!wide)
+      Fail(L"Cannot read the Linthesia command line.", GetLastError());
+    struct WideArguments {
+      wchar_t** values;
+      ~WideArguments() { LocalFree(values); }
+    } allocated = {wide};
+
+    buffers_.reserve(static_cast<size_t>(count));
+    pointers_.reserve(static_cast<size_t>(count) + 1);
+    for (int index = 0; index < count; ++index) {
+      const int size = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
+          wide[index], -1, nullptr, 0, nullptr, nullptr);
+      if (!size)
+        Fail(L"Cannot convert a Linthesia command-line argument to UTF-8.",
+             GetLastError());
+      buffers_.emplace_back(static_cast<size_t>(size));
+      if (!WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide[index], -1,
+              buffers_.back().data(), size, nullptr, nullptr))
+        Fail(L"Cannot convert a Linthesia command-line argument to UTF-8.",
+             GetLastError());
+      pointers_.push_back(buffers_.back().data());
     }
+    pointers_.push_back(nullptr);
   }
-  quoted.append(backslashes * 2, L'\\');
-  quoted += L'"';
-  return quoted;
-}
 
-std::wstring ChildCommandLine(const std::wstring& application) {
-  int count = 0;
-  wchar_t** arguments = CommandLineToArgvW(GetCommandLineW(), &count);
-  if (!arguments)
-    Fail(L"Cannot read the Linthesia command line.", GetLastError());
-  struct Arguments {
-    wchar_t** values;
-    ~Arguments() { LocalFree(values); }
-  } allocated = {arguments};
+  int count() const { return static_cast<int>(buffers_.size()); }
+  char** values() { return pointers_.data(); }
 
-  std::wstring command = QuoteArgument(application);
-  for (int index = 1; index < count; ++index)
-    command += L" " + QuoteArgument(arguments[index]);
-  return command;
-}
-
-// Preserve redirected CLI output for --help/--version and automated checks.
-// A normal Explorer launch has no standard handles, so use NUL in that case.
-HANDLE InheritableStandardHandle(DWORD kind, DWORD access) {
-  const HANDLE original = GetStdHandle(kind);
-  if (original && original != INVALID_HANDLE_VALUE) {
-    HANDLE duplicate = nullptr;
-    if (DuplicateHandle(GetCurrentProcess(), original, GetCurrentProcess(),
-                        &duplicate, 0, TRUE, DUPLICATE_SAME_ACCESS))
-      return duplicate;
-    // Shell launches can supply non-stream values, such as a monitor handle.
-    // Treat an unusable standard handle like an absent one.
-  }
-  SECURITY_ATTRIBUTES security = {sizeof(security), nullptr, TRUE};
-  const HANDLE fallback = CreateFileW(
-      L"NUL", access, FILE_SHARE_READ | FILE_SHARE_WRITE, &security,
-      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-  if (fallback == INVALID_HANDLE_VALUE)
-    Fail(L"Cannot prepare standard input/output for Linthesia.", GetLastError());
-  return fallback;
-}
+ private:
+  std::vector<std::vector<char>> buffers_;
+  std::vector<char*> pointers_;
+};
 
 int Launch() {
-  const std::wstring application = ApplicationPath();
+  const std::wstring dll_directory = ExecutableDirectory() + L"\\dll";
+  const std::wstring application = dll_directory + L"\\LinthesiaApp.dll";
   const DWORD attributes = GetFileAttributesW(application.c_str());
   if (attributes == INVALID_FILE_ATTRIBUTES)
-    Fail(L"Cannot find app\\Linthesia.exe. Extract the entire ZIP and keep the "
-         L"app folder beside Linthesia.exe.", GetLastError());
+    Fail(L"Cannot find dll\\LinthesiaApp.dll. Extract the entire ZIP and keep "
+         L"the dll folder beside Linthesia.exe.", GetLastError());
   if (attributes & FILE_ATTRIBUTE_DIRECTORY)
-    throw std::wstring(L"app\\Linthesia.exe must be a file. Extract the entire "
-                       L"Linthesia ZIP again.");
+    throw std::wstring(L"dll\\LinthesiaApp.dll must be a file. Extract the "
+                       L"entire Linthesia ZIP again.");
 
-  std::wstring command = ChildCommandLine(application);
-  Handle input(InheritableStandardHandle(STD_INPUT_HANDLE, GENERIC_READ));
-  Handle output(InheritableStandardHandle(STD_OUTPUT_HANDLE, GENERIC_WRITE));
-  Handle error(InheritableStandardHandle(STD_ERROR_HANDLE, GENERIC_WRITE));
-  STARTUPINFOW startup = {};
-  startup.cb = sizeof(startup);
-  startup.dwFlags = STARTF_USESTDHANDLES;
-  startup.hStdInput = input.get();
-  startup.hStdOutput = output.get();
-  startup.hStdError = error.get();
-  PROCESS_INFORMATION child = {};
+  Arguments arguments;
+  // Also cover libraries SDL may load later. Avoid looking in the caller's
+  // working directory or relying on a developer installation on PATH.
+  if (!SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32 |
+                               LOAD_LIBRARY_SEARCH_USER_DIRS))
+    Fail(L"Cannot prepare the Linthesia DLL search path.", GetLastError());
+  const DLL_DIRECTORY_COOKIE directory_cookie =
+      AddDllDirectory(dll_directory.c_str());
+  if (!directory_cookie)
+    Fail(L"Cannot use the Linthesia dll folder.", GetLastError());
 
-  // Keep the caller's working directory and environment. Relative MIDI paths
-  // continue to refer to the caller's folder; Windows finds DLLs beside the child.
-  if (!CreateProcessW(application.c_str(), &command[0], nullptr, nullptr, TRUE,
-                      0, nullptr, nullptr, &startup, &child))
-    Fail(L"Could not start Linthesia. Keep the complete app folder beside "
-         L"Linthesia.exe.", GetLastError());
-  Handle process(child.hProcess);
-  Handle thread(child.hThread);
-  if (WaitForSingleObject(process.get(), INFINITE) != WAIT_OBJECT_0)
-    Fail(L"Could not wait for Linthesia to exit.", GetLastError());
-  DWORD exit_code = 1;
-  if (!GetExitCodeProcess(process.get(), &exit_code))
-    Fail(L"Could not read the Linthesia exit status.", GetLastError());
-  return static_cast<int>(exit_code);
+  const HMODULE module = LoadLibraryExW(application.c_str(), nullptr,
+      LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+  if (!module)
+    Fail(L"Could not load Linthesia. Keep all supplied DLL files in the dll "
+         L"folder beside Linthesia.exe.", GetLastError());
+  const FARPROC entry = GetProcAddress(module, "LinthesiaRun");
+  if (!entry)
+    Fail(L"The Linthesia application DLL is incompatible. Extract the entire "
+         L"ZIP again.", GetLastError());
+
+  // In C++14 noexcept is not part of the function pointer type. The exported
+  // implementation still guarantees that no exceptions cross this boundary.
+  typedef int (WINAPI *RunApplication)(int, char**);
+  const RunApplication run = reinterpret_cast<RunApplication>(entry);
+  // Keep the DLL and its search directory registered until process exit. An
+  // application error can leave background threads alive until Windows exits.
+  // CWD, environment, and redirected standard handles are unchanged.
+  return run(arguments.count(), arguments.values());
 }
 
 }  // namespace

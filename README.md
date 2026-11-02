@@ -19,8 +19,9 @@ Synthesia up to version 0.6.1a is Open Source. This project uses the latest sour
 
 The Windows port uses native WinMM MIDI input/output and Windows MIDI Mapper
 for built-in sound. Extract the entire portable ZIP and run `Linthesia.exe`;
-keep the `app` folder beside it. The ZIP contains just `Linthesia.exe` and
-`app/` at the top level; DLLs, graphics, songs, and licenses are inside `app/`.
+keep the `dll`, `graphics`, `music`, `licenses`, and `manual` folders beside it.
+All DLL files are grouped in `dll/`; the user guide and application license are
+in `manual/README-ko.md` and `manual/COPYING`.
 
 To build from source, install the MSYS2 UCRT64 dependencies listed in
 [WINDOWS-BUILD.ko.md](WINDOWS-BUILD.ko.md), then run `build-windows.cmd`.

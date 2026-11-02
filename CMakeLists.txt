@@ -25,7 +25,7 @@ endif()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/config.h"
   "#pragma once\n#define PACKAGE_VERSION \"${PROJECT_VERSION}-windows\"\n")
 
-add_executable(Linthesia WIN32
+add_library(Linthesia SHARED
   src/MenuLayout.cpp src/CompatibleSystem.cpp src/StringTile.cpp
   src/TitleState.cpp src/Tga.cpp src/SongTile.cpp src/TrackTile.cpp
   src/UserSettings.cpp src/TextWriter.cpp src/EnumTile.cpp
@@ -36,7 +36,8 @@ add_executable(Linthesia WIN32
   src/DpmsThread.cpp src/FileSelector.cpp
   src/libmidi/MidiEvent.cpp src/libmidi/MidiTrack.cpp
   src/libmidi/Midi.cpp src/libmidi/MidiUtil.cpp
-  windows/Linthesia.rc)
+  windows/AppEntry.cpp)
+set_target_properties(Linthesia PROPERTIES PREFIX "" OUTPUT_NAME LinthesiaApp)
 target_include_directories(Linthesia PRIVATE src windows "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_definitions(Linthesia PRIVATE
   NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00
@@ -46,15 +47,11 @@ if(MSVC)
 else()
   target_compile_options(Linthesia PRIVATE -Wall -Wextra)
 endif()
-if(TARGET SDL2::SDL2main)
-  target_link_libraries(Linthesia PRIVATE SDL2::SDL2main)
-endif()
 target_link_libraries(Linthesia PRIVATE
   SDL2::SDL2 SDL2_image::SDL2_image SDL2_ttf::SDL2_ttf
   SQLite3::SQLite3 OpenGL::GL Threads::Threads winmm shell32 ole32)
 
-# Keep the portable package's top level to one launcher and one app folder.
-# The launcher must run before any of the application's DLLs are loaded.
+# Load the application and runtime DLLs from dll/, keeping resources at the root.
 add_executable(LinthesiaLauncher WIN32 windows/Launcher.cpp windows/Linthesia.rc)
 target_include_directories(LinthesiaLauncher PRIVATE windows)
 target_compile_definitions(LinthesiaLauncher PRIVATE
@@ -92,13 +89,24 @@ if(BUILD_TESTING)
   add_test(NAME portable-core COMMAND PortableCore
     "${CMAKE_CURRENT_SOURCE_DIR}/music/Keyboard_Classics/Fur_Elise-Beethoven.mid"
     "${CMAKE_CURRENT_SOURCE_DIR}/music/Default/Eve ／ 夜は仄か.mid")
+
+  # Exercise the launcher's UTF-8 argv, working directory, and return status
+  # without requiring an OpenGL display or a physical MIDI device.
+  add_library(LauncherProbe SHARED
+    tests/launcher-probe.cpp tests/portable-core.cpp
+    src/libmidi/MidiEvent.cpp src/libmidi/MidiTrack.cpp
+    src/libmidi/Midi.cpp src/libmidi/MidiUtil.cpp)
+  target_include_directories(LauncherProbe PRIVATE src)
+  target_compile_definitions(LauncherProbe PRIVATE
+    NOMINMAX WIN32_LEAN_AND_MEAN main=LinthesiaPortableCoreMain)
+  set_target_properties(LauncherProbe PROPERTIES PREFIX "" OUTPUT_NAME LauncherProbe)
 endif()
 
 install(TARGETS LinthesiaLauncher RUNTIME DESTINATION .)
-install(TARGETS Linthesia RUNTIME DESTINATION app)
-install(DIRECTORY graphics/ DESTINATION app/graphics
+install(TARGETS Linthesia RUNTIME DESTINATION dll LIBRARY DESTINATION dll)
+install(DIRECTORY graphics/ DESTINATION graphics
   FILES_MATCHING PATTERN "*.tga" PATTERN "*.ttf" PATTERN "*.png")
-install(DIRECTORY music/ DESTINATION app/music)
-install(FILES COPYING DESTINATION app)
-install(DIRECTORY windows/licenses/ DESTINATION app/licenses)
-install(FILES WINDOWS-BUILD.ko.md DESTINATION app RENAME README-ko.md)
+install(DIRECTORY music/ DESTINATION music)
+install(FILES COPYING DESTINATION manual)
+install(DIRECTORY windows/licenses/ DESTINATION licenses)
+install(FILES WINDOWS-BUILD.ko.md DESTINATION manual RENAME README-ko.md)
