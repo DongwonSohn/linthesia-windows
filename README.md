@@ -3,6 +3,8 @@
 [![Windows build](https://github.com/DongwonSohn/linthesia-windows/actions/workflows/windows.yml/badge.svg)](https://github.com/DongwonSohn/linthesia-windows/actions/workflows/windows.yml)
 [![Linux build](https://github.com/DongwonSohn/linthesia-windows/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/DongwonSohn/linthesia-windows/actions/workflows/c-cpp.yml)
 
+![Linthesia gameplay on Windows](etc/windows-gameplay.png)
+
 This fork of [Linthesia](https://github.com/linthesia/linthesia) adds a native
 Windows 10/11 x64 port with WinMM MIDI, Unicode file paths, and portable EXE
 packaging. See the [Windows build guide](WINDOWS-BUILD.ko.md) for setup and use.
