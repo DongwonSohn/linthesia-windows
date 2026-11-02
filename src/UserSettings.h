@@ -29,6 +29,11 @@ namespace UserSetting {
    // This must be called exactly once before any of the following will work
    void Initialize();
 
+#if defined(__APPLE__) || defined(_WIN32)
+   // The directory containing settings and the song statistics database.
+   std::string DataDirectory();
+#endif
+
    std::string Get(const std::string &setting,
 		   const std::string &default_value);
   

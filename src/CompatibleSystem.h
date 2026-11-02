@@ -11,8 +11,6 @@
 
 #include <string>
 
-#define PATH_MAX 1024
-
 namespace Compatible {
   
   // Some monotonically increasing value tied to the system

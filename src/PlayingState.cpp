@@ -14,6 +14,7 @@
 #include "CompatibleSystem.h"
 
 #include <stdio.h>
+#include <cstdint>
 #include <string>
 #include <iomanip>
 
@@ -253,7 +254,8 @@ void PlayingState::Listen() {
     if (m_state.midi_in->ShouldReconnect())
     {
         m_state.midi_in->Reconnect();
-        m_state.midi_out->Reconnect();
+        if (m_state.midi_out)
+          m_state.midi_out->Reconnect();
         continue;
     }
 
@@ -404,7 +406,8 @@ void PlayingState::Update() {
   const static double fade_ms = 500.0;
 
   m_title_alpha = 0.0;
-  unsigned long ms = GetStateMicroseconds() * max(m_state.song_speed, 50) / 100000;
+  const uint64_t ms = static_cast<uint64_t>(GetStateMicroseconds()) *
+                      max(m_state.song_speed, 50) / 100000;
 
   if (double(ms) <= stay_ms)
     m_title_alpha = min(1.0, ms / fade_in_ms);
@@ -543,7 +546,8 @@ void PlayingState::Update() {
     microseconds_t new_time = cur_time + 5000000;
     m_state.midi->GoTo(new_time);
     m_required_notes.clear();
-    m_state.midi_out->Reset();
+    if (m_state.midi_out)
+      m_state.midi_out->Reset();
     m_keyboard->ResetActiveKeys();
     m_notes = m_state.midi->Notes();
     m_notes_history.clear();
@@ -559,7 +563,8 @@ void PlayingState::Update() {
     microseconds_t new_time = cur_time - 5000000;
     m_state.midi->GoTo(new_time);
     m_required_notes.clear();
-    m_state.midi_out->Reset();
+    if (m_state.midi_out)
+      m_state.midi_out->Reset();
     m_keyboard->ResetActiveKeys();
     m_notes = m_state.midi->Notes();
     m_notes_history.clear();
@@ -598,7 +603,8 @@ void PlayingState::Update() {
         m_state.midi->GoTo(new_time);
         m_required_notes.clear();
         m_pressed_notes.clear();
-        m_state.midi_out->Reset();
+        if (m_state.midi_out)
+          m_state.midi_out->Reset();
         m_keyboard->ResetActiveKeys();
         TranslatedNoteSet def = m_state.midi->Notes();
 

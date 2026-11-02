@@ -12,11 +12,7 @@
 #include <iostream>
 #include <string>
 
-// Handy string macros
-#ifndef STRING
-#include <sstream>
-#define STRING(v) ((static_cast<std::ostringstream&>(std::ostringstream().flush() << v)).str())
-#endif
+#include "../StringUtil.h"
 
 // Cross-platform Endian conversion functions
 //

@@ -13,6 +13,7 @@
 #include "OSGraphics.h"
 #include "StringUtil.h"
 #include "LinthesiaError.h"
+#include "PlatformPaths.h"
 
 using namespace std;
 
@@ -22,7 +23,7 @@ Tga* Tga::Load(const string &resource_name) {
   string full_name = resource_name + ".tga";
 
   full_name = string(GRAPHDIR) + "/" + full_name;
-  ifstream file(full_name.c_str(), ios::in|ios::binary|ios::ate);
+  ifstream file(LinthesiaNativePath(full_name).c_str(), ios::in|ios::binary|ios::ate);
   if (!file.is_open())
     throw LinthesiaError("Couldn't open TGA resource (" + full_name + ").");
 

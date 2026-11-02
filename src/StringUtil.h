@@ -9,11 +9,28 @@
 #ifndef __STRING_UTIL_H
 #define __STRING_UTIL_H
 
-// Handy string macros
-#ifndef STRING
+// Build strings without casting an ostream temporary to a derived type.
 #include <sstream>
-#define STRING(v) ((static_cast<std::ostringstream&>(std::ostringstream().\
-						     flush() << v)).str())
+class LinthesiaStringBuilder {
+public:
+  template<class T> LinthesiaStringBuilder& operator<<(const T& value) {
+    stream << value;
+    return *this;
+  }
+  LinthesiaStringBuilder& operator<<(std::ostream& (*manipulator)(std::ostream&)) {
+    stream << manipulator;
+    return *this;
+  }
+  LinthesiaStringBuilder& operator<<(std::ios_base& (*manipulator)(std::ios_base&)) {
+    stream << manipulator;
+    return *this;
+  }
+  std::string str() const { return stream.str(); }
+private:
+  std::ostringstream stream;
+};
+#ifndef STRING
+#define STRING(v) ((LinthesiaStringBuilder() << v).str())
 #endif
 
 #include <string>
@@ -29,16 +46,16 @@ const string_type StringLower(string_type s) {
 
   std::locale loc;
   
+  const auto& facet = std::use_facet<std::ctype<typename string_type::value_type>>(loc);
   std::transform(s.begin(), s.end(), s.begin(),
-		 std::bind1st( std::mem_fun( &std::ctype<typename string_type::value_type>::tolower ),
-			       &std::use_facet< std::ctype<typename string_type::value_type> >( loc ) ) );
+                 [&facet](typename string_type::value_type c) { return facet.tolower(c); });
   
   return s;
 }
 
 // E here is usually wchar_t
 template<class E, class T = std::char_traits<E>, class A = std::allocator<E> >
-class Widen : public std::unary_function< const std::string&, std::basic_string<E, T, A> > {
+class Widen {
 
 public:
   

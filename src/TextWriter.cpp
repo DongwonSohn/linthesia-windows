@@ -7,6 +7,7 @@
 // See COPYING for license information
 
 #include "TextWriter.h"
+#include "PlatformPaths.h"
 #include "Renderer.h"
 #include "LinthesiaError.h"
 #include "OSGraphics.h"
@@ -29,6 +30,18 @@ static TTF_Font* get_font(int size, string fontname) {
 
   if (!font) {
     std::string font_path = GRAPHDIR + std::string("/") + fontname;
+#ifdef _WIN32
+    // Use the installed Korean-capable UI font for Unicode song/device names.
+    if (fontname == "FreeSans.ttf") {
+      wchar_t windows_directory[MAX_PATH];
+      const UINT length = GetWindowsDirectoryW(windows_directory, MAX_PATH);
+      if (length > 0 && length < MAX_PATH) {
+        const std::string system_font = LinthesiaUtf8(windows_directory) + "/Fonts/malgun.ttf";
+        if (LinthesiaIsFile(system_font))
+          font_path = system_font;
+      }
+    }
+#endif
     font = TTF_OpenFont(font_path.c_str(), size);
     if (!font)
       throw LinthesiaSDLTTFError("unable to load font " + fontname + " from " + font_path);
@@ -38,6 +51,11 @@ static TTF_Font* get_font(int size, string fontname) {
   return font;
 }
 
+void TextWriter::ReleaseFonts() {
+  for (const auto& entry : font_map)
+    TTF_CloseFont(entry.second);
+  font_map.clear();
+}
 TextWriter::TextWriter(int in_x, int in_y, Renderer &in_renderer,
                        bool in_centered, int in_size, string fontname) :
   x(in_x),
@@ -72,7 +90,7 @@ TextWriter& TextWriter::next_line() {
 
 void Text::DrawText(TextWriter& tw, SDL_Color color, int draw_x, int draw_y) const
 {
-  SDL_Surface* sFont = TTF_RenderText_Blended(tw.font, m_text.c_str(), color);
+  SDL_Surface* sFont = TTF_RenderUTF8_Blended(tw.font, m_text.c_str(), color);
   if (sFont == nullptr)
     throw LinthesiaSDLTTFError("error rendering text");
 

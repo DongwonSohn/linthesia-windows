@@ -12,7 +12,9 @@
 #include <string>
 #include <vector>
 #include <queue>
+#if !defined(__APPLE__) && !defined(_WIN32)
 #include <alsa/asoundlib.h>
+#endif
 
 #include "libmidi/MidiEvent.h"
 
@@ -26,6 +28,13 @@ struct MidiCommDescription {
 };
 
 typedef std::vector<MidiCommDescription> MidiCommDescriptionList;
+
+#ifdef __APPLE__
+struct MidiCommInMacState;
+#elif defined(_WIN32)
+struct MidiCommInWinState;
+struct MidiCommOutWinState;
+#endif
 
 // Start/Stop midi services (i.e. open/close sequencer)
 void midiInit();
@@ -66,6 +75,11 @@ public:
 private:
   MidiCommDescription m_description;
   bool m_should_reconnect;
+#ifdef __APPLE__
+  MidiCommInMacState *m_mac;
+#elif defined(_WIN32)
+  MidiCommInWinState *m_win;
+#endif
 
 };
 
@@ -96,6 +110,9 @@ private:
 
   MidiCommDescription m_description;
   std::vector<std::pair<int,int> > notes_on;
+#ifdef _WIN32
+  MidiCommOutWinState *m_win;
+#endif
 
 };
 

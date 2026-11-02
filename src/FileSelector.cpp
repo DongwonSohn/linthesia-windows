@@ -35,7 +35,7 @@ namespace FileSelector {
     }
 
     // remove path
-    string::size_type i = lower.find_last_of("/");
+    string::size_type i = lower.find_last_of("/\\");
     if (i != string::npos)
       lower = lower.substr(i+1, lower.length());
 

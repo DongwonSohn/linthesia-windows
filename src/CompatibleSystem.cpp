@@ -6,7 +6,7 @@
 // Adaptation to GNU/Linux by Oscar Aceña
 // See COPYING for license information
 
-#include <sys/time.h>
+#include <chrono>
 
 #include "MidiComm.h"
 #include "CompatibleSystem.h"
@@ -24,16 +24,14 @@ namespace Compatible {
 
   unsigned long GetMilliseconds() {
 
-    timeval tv;
-    gettimeofday(&tv, 0);
-    return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+    return static_cast<unsigned long>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count());
   }
 
   unsigned long GetMicroseconds() {
 
-    timeval tv;
-    gettimeofday(&tv, 0);
-    return (tv.tv_sec * 1000000) + tv.tv_usec;
+    return static_cast<unsigned long>(std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count());
   }
 
 
@@ -45,13 +43,10 @@ namespace Compatible {
       STRING(friendly_app_name << " Error");
 
     printf("%s\n", err.c_str());
-    if (sdl_window)
-    {
-      SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
                                message_box_title.c_str(),
                                err.c_str(),
                                sdl_window);
-    } 
   }
 
   void HideMouseCursor() {

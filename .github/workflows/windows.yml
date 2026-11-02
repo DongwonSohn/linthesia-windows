@@ -1,0 +1,58 @@
+name: Windows executable
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-SDL2_image
+            mingw-w64-ucrt-x86_64-SDL2_ttf
+            mingw-w64-ucrt-x86_64-sqlite3
+      - name: Locate source directory
+        shell: pwsh
+        run: |
+          $source = if (Test-Path source/CMakeLists.txt) { 'source' } else { '.' }
+          "LINTHESIA_SOURCE=$((Resolve-Path $source).Path)" >> $env:GITHUB_ENV
+      - name: Build portable executable
+        shell: pwsh
+        run: |
+          & "$env:LINTHESIA_SOURCE/build-windows.ps1" -MsysRoot '${{ steps.msys2.outputs.msys2-location }}'
+      - name: Check packaged executable without MSYS2 on PATH
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:LINTHESIA_SOURCE 'dist/windows-x64/Linthesia'
+          # Exercise a relocated Unicode path and a different working directory.
+          $relocated = Join-Path $env:RUNNER_TEMP 'Linthesia 테스트'
+          Copy-Item -LiteralPath $package -Destination $relocated -Recurse
+          $exe = Join-Path $relocated 'Linthesia.exe'
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          foreach ($arguments in @(@('--version'), @('--help'))) {
+            $process = Start-Process -FilePath $exe -ArgumentList $arguments -WorkingDirectory $env:RUNNER_TEMP -Wait -PassThru
+            if ($process.ExitCode -ne 0) { throw "Smoke check failed: $arguments ($($process.ExitCode))" }
+          }
+          # A value is required after -f; this must exit instead of crashing.
+          $process = Start-Process -FilePath $exe -ArgumentList '-f' -WorkingDirectory $env:RUNNER_TEMP -Wait -PassThru
+          if ($process.ExitCode -ne 1) { throw "Invalid arguments did not return exit code 1." }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Linthesia-windows-x64
+          path: ${{ env.LINTHESIA_SOURCE }}/dist/windows-x64/Linthesia-windows-x64.zip
+          if-no-files-found: error

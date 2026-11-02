@@ -11,6 +11,7 @@
 
 #include <exception>
 #include <string>
+#include <cstdint>
 #include <map>
 
 #include "Textures.h"
@@ -136,7 +137,7 @@ protected:
   virtual void Draw(Renderer &renderer) const = 0;
 
   // How long has this state been running
-  unsigned long GetStateMicroseconds() const {
+  uint64_t GetStateMicroseconds() const {
     return m_state_microseconds;
   }
 
@@ -178,7 +179,7 @@ private:
     m_last_delta_microseconds = delta_us;
   }
 
-  unsigned long m_state_microseconds;
+  uint64_t m_state_microseconds;
   unsigned long m_last_delta_microseconds;
 
   friend class GameStateManager;

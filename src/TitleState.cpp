@@ -29,6 +29,13 @@ using namespace std;
 const static string OutputKeySpecialDisabled = "[no output device]";
 const static string InputKeySpecialDisabled = "[no input device]";
 
+static int CurrentDeviceId(const MidiCommDescriptionList& devices,
+                           const MidiCommDescription& selected) {
+  for (const auto& device : devices)
+    if (device.name == selected.name)
+      return static_cast<int>(device.id);
+  return -1;
+}
 
 TitleState::~TitleState() {
 
@@ -66,7 +73,11 @@ void TitleState::Init() {
      MidiCommDescriptionList::const_iterator it;
      for (it = devices.begin(); it != devices.end(); it++) {
        if (it->name == last_output_device) {
-         m_state.midi_out = new MidiCommOut(it->id);
+         try {
+           m_state.midi_out = new MidiCommOut(it->id);
+         } catch (const std::exception& error) {
+           std::cerr << "Cannot restore MIDI output: " << error.what() << '\n';
+         }
          break;
        }
      }
@@ -74,9 +85,16 @@ void TitleState::Init() {
      // Next, if we couldn't find a previously used device,
      // use the first one
      if (last_output_device != OutputKeySpecialDisabled &&
-         !m_state.midi_out && devices.size() > 0)
-
-       m_state.midi_out = new MidiCommOut(devices[0].id);
+         !m_state.midi_out && devices.size() > 0) {
+       for (const auto& device : devices) {
+         try {
+           m_state.midi_out = new MidiCommOut(device.id);
+           break;
+         } catch (const std::exception& error) {
+           std::cerr << "Cannot open MIDI output: " << error.what() << '\n';
+         }
+       }
+     }
    }
 
    if (!m_state.midi_in) {
@@ -93,6 +111,10 @@ void TitleState::Init() {
          catch (MidiErrorCode) {
            m_state.midi_in = 0;
          }
+         catch (const std::exception& error) {
+           std::cerr << "Cannot restore MIDI input: " << error.what() << '\n';
+           m_state.midi_in = 0;
+         }
        }
      }
 
@@ -101,15 +123,18 @@ void TitleState::Init() {
      // completely acceptable.
    }
 
+   const MidiCommDescriptionList output_devices = MidiCommOut::GetDeviceList();
+   const MidiCommDescriptionList input_devices = MidiCommIn::GetDeviceList();
+
    int output_device_id = -1;
    if (m_state.midi_out) {
-     output_device_id = m_state.midi_out->GetDeviceDescription().id;
+     output_device_id = CurrentDeviceId(output_devices, m_state.midi_out->GetDeviceDescription());
      m_state.midi_out->Reset();
    }
 
    int input_device_id = -1;
    if (m_state.midi_in) {
-     input_device_id = m_state.midi_in->GetDeviceDescription().id;
+     input_device_id = CurrentDeviceId(input_devices, m_state.midi_in->GetDeviceDescription());
      m_state.midi_in->Reset();
    }
 
@@ -122,9 +147,6 @@ void TitleState::Init() {
                                 GetTexture(SongBox));
 
    m_file_tile->SetString(m_state.song_title);
-
-   const MidiCommDescriptionList output_devices = MidiCommOut::GetDeviceList();
-   const MidiCommDescriptionList input_devices = MidiCommIn::GetDeviceList();
 
    m_output_tile = new DeviceTile((GetStateWidth() - DeviceTileWidth) / 2,
                                   initial_y + each_y*1,
@@ -225,8 +247,7 @@ void TitleState::Update() {
 
   // Check to see if we need to switch to a newly selected output device
   int output_id = m_output_tile->GetDeviceId();
-  if (!m_state.midi_out ||
-      output_id != static_cast<int>(m_state.midi_out->GetDeviceDescription().id)) {
+  if (output_id != (m_state.midi_out ? static_cast<int>(m_state.midi_out->GetDeviceDescription().id) : -1)) {
 
     if (m_state.midi_out)
       m_state.midi_out->Reset();
@@ -237,10 +258,14 @@ void TitleState::Update() {
     // save to user preferences
     if (output_id >= 0) {
 
-      m_state.midi_out = new MidiCommOut(output_id);
-      m_state.midi->Reset(0,0);
-
-      UserSetting::Set(OUTPUT_DEVICE_KEY, m_state.midi_out->GetDeviceDescription().name);
+      try {
+        m_state.midi_out = new MidiCommOut(output_id);
+        m_state.midi->Reset(0,0);
+        UserSetting::Set(OUTPUT_DEVICE_KEY, m_state.midi_out->GetDeviceDescription().name);
+      } catch (const std::exception& error) {
+        m_output_tile->DisableDevice();
+        Compatible::ShowError(string("Cannot open MIDI output: ") + error.what());
+      }
     }
     else
       UserSetting::Set(OUTPUT_DEVICE_KEY, OutputKeySpecialDisabled);
@@ -251,6 +276,12 @@ void TitleState::Update() {
 
     // Read note events to display on screen
     while (m_state.midi_in->KeepReading()) {
+      if (m_state.midi_in->ShouldReconnect()) {
+        m_state.midi_in->Reconnect();
+        if (m_state.midi_out)
+          m_state.midi_out->Reconnect();
+        continue;
+      }
       MidiEvent ev = m_state.midi_in->Read();
 
       // send to output (for a possible audio preview)
@@ -292,8 +323,7 @@ void TitleState::Update() {
   }
 
   int input_id = m_input_tile->GetDeviceId();
-   if (!m_state.midi_in ||
-       input_id != static_cast<int>(m_state.midi_in->GetDeviceDescription().id)) {
+   if (input_id != (m_state.midi_in ? static_cast<int>(m_state.midi_in->GetDeviceDescription().id) : -1)) {
 
      if (m_state.midi_in)
        m_state.midi_in->Reset();
@@ -312,6 +342,11 @@ void TitleState::Update() {
 
        catch (MidiErrorCode) {
          m_state.midi_in = 0;
+         m_input_tile->DisableDevice();
+       }
+       catch (const std::exception& error) {
+         m_input_tile->DisableDevice();
+         Compatible::ShowError(string("Cannot open MIDI input: ") + error.what());
        }
      }
 

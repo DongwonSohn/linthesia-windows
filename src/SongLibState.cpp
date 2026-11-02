@@ -8,13 +8,14 @@
 #include "MenuLayout.h"
 #include "TitleState.h"
 #include "LinthesiaError.h"
+#include "PlatformPaths.h"
+#include "StringUtil.h"
 
 #include "libmidi/Midi.h"
 
+#ifndef _WIN32
 #include <dirent.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#endif
 
 using namespace std;
 
@@ -28,10 +29,14 @@ void SongLibState::Init() {
     m_base_path = UserSetting::Get(SONG_LIB_PATH_KEY, MUSICDIR);
     m_current_path = UserSetting::Get(SONG_LIB_DIR_SETTINGS_KEY, MUSICDIR);
     // since it is unconfortable to crash when no file is present, let's test it now
-    struct stat st;
-    if ( (!stat(m_current_path.c_str(),&st) == 0) || (! st.st_mode & S_IFDIR != 0) ) {
+    if (!LinthesiaIsDirectory(m_current_path)) {
 	    m_current_path = m_base_path;
     }
+    // Portable distributions can be moved after their last launch.
+    if (!LinthesiaIsDirectory(m_base_path))
+        m_base_path = MUSICDIR;
+    if (!LinthesiaIsDirectory(m_current_path))
+        m_current_path = m_base_path;
 
     m_current_page = 0;
 
@@ -86,6 +91,7 @@ bool hasEnding (string fullString, string ending) {
 }
 
 bool isMidiFile(string f) {
+    f = StringLower(f);
     return hasEnding(f, string(".midi")) || hasEnding(f, string(".mid"));
 }
 
@@ -112,40 +118,44 @@ void SongLibState::UpdateSongTiles() {
     
     m_song_tiles.clear();
 
-    DIR *dir;
-    struct dirent *ent;
-    
-    if ((dir = opendir (m_current_path.c_str())) != NULL) {
+    Tga* song_tile_graphics = GetTexture(SongBox);
+    Tga* dir_tile_graphics = GetTexture(DirBox);
+    const auto add_entry = [&](const string& name, bool directory) {
+        if (name == "." || name == ".." || (!directory && !isMidiFile(name)))
+            return;
+        const string path = m_current_path + "/" + name;
+        m_song_tiles.push_back(SongTile(0, 0, path, FileSelector::TrimFilename(name),
+                                       directory, directory ? dir_tile_graphics : song_tile_graphics));
+    };
 
-        Tga* song_tile_graphics = GetTexture(SongBox);
-        Tga* dir_tile_graphics = GetTexture(DirBox);
-
-        while ((ent = readdir (dir)) != NULL) {
-            string f_name = string(ent->d_name);
-            if (f_name.compare(".") != 0 && f_name.compare("..") != 0) {
-
-                if (ent->d_type == DT_DIR || isMidiFile(string(ent->d_name))) {
-                    Tga * graphics = ent->d_type == DT_DIR ? dir_tile_graphics : song_tile_graphics;
-                    string path = m_current_path + "/" + ent->d_name;
-                    string title = string(FileSelector::TrimFilename(ent->d_name));
-                    SongTile song_tile = SongTile(0, 0, path, title,
-                                        ent->d_type == DT_DIR,
-                                        graphics);
-                    m_song_tiles.push_back(song_tile);
-                }
-
-            }
-        }
-        closedir (dir);
-
-        std::sort(m_song_tiles.begin(),m_song_tiles.end(), songtile_less_than_key());
-
-        //Assign coordinates for the first time
-        Resize();
+#ifdef _WIN32
+    WIN32_FIND_DATAW entry;
+    HANDLE search = FindFirstFileW(LinthesiaNativePath(m_current_path + "/*").c_str(), &entry);
+    if (search == INVALID_HANDLE_VALUE) {
+        if (GetLastError() != ERROR_FILE_NOT_FOUND || !LinthesiaIsDirectory(m_current_path))
+            throw LinthesiaError("Can't open dir : " + m_current_path);
+    } else {
+        do {
+            add_entry(LinthesiaUtf8(entry.cFileName), (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
+        } while (FindNextFileW(search, &entry));
+        const DWORD error = GetLastError();
+        FindClose(search);
+        if (error != ERROR_NO_MORE_FILES)
+            throw LinthesiaError("Can't read dir : " + m_current_path);
     }
-    else {
+#else
+    DIR* dir = opendir(m_current_path.c_str());
+    if (!dir)
         throw LinthesiaError("Can't open dir : " + m_current_path);
+    while (struct dirent* entry = readdir(dir)) {
+        const string name(entry->d_name);
+        add_entry(name, LinthesiaIsDirectory(m_current_path + "/" + name));
     }
+    closedir(dir);
+#endif
+
+    std::sort(m_song_tiles.begin(), m_song_tiles.end(), songtile_less_than_key());
+    Resize();
 
 }
 

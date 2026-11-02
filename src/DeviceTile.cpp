@@ -26,6 +26,9 @@ DeviceTile::DeviceTile(int x, int y, int device_id, DeviceTileType type,
   m_button_graphics(button_graphics),
   m_frame_graphics(frame_graphics) {
 
+  if (m_device_id < 0 || static_cast<size_t>(m_device_id) >= m_device_list.size())
+    m_device_id = -1;
+
   // Initialize the size and position of each button
   whole_tile = ButtonState(0, 0, DeviceTileWidth, DeviceTileHeight);
   button_mode_left  = ButtonState(  6, 38, GraphicWidth, GraphicHeight);
@@ -121,7 +124,7 @@ void DeviceTile::Draw(Renderer &renderer) const {
   else {
 
     // A -1 for device_id means "disabled"
-    if (m_device_id >= 0)
+    if (m_device_id >= 0 && static_cast<size_t>(m_device_id) < m_device_list.size())
       mode << m_device_list[m_device_id].name;
 
     else {
@@ -142,7 +145,7 @@ void DeviceTile::Draw(Renderer &renderer) const {
 
 void DeviceTile::ReplaceDeviceList(const MidiCommDescriptionList &device_list)
 {
-  if (m_device_id != -1)
+  if (m_device_id >= 0 && static_cast<size_t>(m_device_id) < m_device_list.size())
   {
       // Try to find currently selected device amoung devices in the new list
       std::string current_name = m_device_list[m_device_id].name;
@@ -164,6 +167,8 @@ void DeviceTile::ReplaceDeviceList(const MidiCommDescriptionList &device_list)
       if (!replaced)
         m_device_id = -1;
   }
+  else
+    m_device_id = -1;
   m_device_list = device_list;
 }
 

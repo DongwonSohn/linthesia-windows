@@ -14,11 +14,9 @@ void DpmsThread::run()
     SDL_EnableScreenSaver();
 
 
+  std::unique_lock<std::mutex> cv_lock(m_should_exit_cv_m);
   while (!m_should_exit)
   {
-    // Required for wait_for
-    std::unique_lock<std::mutex> cv_lock(m_should_exit_cv_m);
-
     // Sleep for 15 seconds or until something changes
     // std::condition_variable::wait_for unlocks mutex
     m_should_exit_cv.wait_for(cv_lock, std::chrono::seconds(15));

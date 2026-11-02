@@ -26,6 +26,7 @@
 // screen in varying colors, fonts, and sizes.
 class TextWriter {
 public:
+  static void ReleaseFonts();
 
   // Centering only works for single-write lines... in other words, centered
   // lines can only be 1 color.

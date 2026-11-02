@@ -6,6 +6,12 @@
 // Adaptation to GNU/Linux by Oscar Aceña
 // See COPYING for license information
 
+#ifdef __APPLE__
+#include "MidiCommMac.inc"
+#elif defined(_WIN32)
+#include "MidiCommWin.inc"
+#else
+
 #include <string>
 #include <sstream>
 #include <alsa/asoundlib.h>
@@ -428,3 +434,5 @@ void MidiCommOut::Reconnect() {
   // We assume, that the client and the port is the same after device's reconnect
   int res = snd_seq_connect_to(alsa_seq, local_out, m_description.client, m_description.port);
 }
+
+#endif // platform MIDI backend

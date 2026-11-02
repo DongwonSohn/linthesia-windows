@@ -1,13 +1,31 @@
-# linthesia
+# Linthesia
 
-![Build Status](https://github.com/linthesia/linthesia/actions/workflows/c-cpp.yml/badge.svg)
+[![Windows build](https://github.com/DongwonSohn/linthesia-windows/actions/workflows/windows.yml/badge.svg)](https://github.com/DongwonSohn/linthesia-windows/actions/workflows/windows.yml)
+[![Linux build](https://github.com/DongwonSohn/linthesia-windows/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/DongwonSohn/linthesia-windows/actions/workflows/c-cpp.yml)
 
+This fork of [Linthesia](https://github.com/linthesia/linthesia) adds a native
+Windows 10/11 x64 port with WinMM MIDI, Unicode file paths, and portable EXE
+packaging. See the [Windows build guide](WINDOWS-BUILD.ko.md) for setup and use.
 
 Linthesia is a fork of the Windows/Mac game called Synthesia. It is a game of playing music using a MIDI keyboard (or your PC keyboard), following a .mid file.
 
 Synthesia up to version 0.6.1a is Open Source. This project uses the latest source from sourceforge.
 
 ## Build
+
+### Windows 10/11 (64-bit)
+
+The Windows port uses native WinMM MIDI input/output and Windows MIDI Mapper
+for built-in sound. Extract the entire portable ZIP and run `Linthesia.exe`;
+keep the DLLs, `graphics`, and `music` beside it.
+
+To build from source, install the MSYS2 UCRT64 dependencies listed in
+[WINDOWS-BUILD.ko.md](WINDOWS-BUILD.ko.md), then run `build-windows.cmd`.
+The script builds with CMake, runs the parser and Windows integration checks,
+and writes `dist/windows-x64/Linthesia-windows-x64.zip` with its runtime DLLs.
+The `Windows executable` GitHub Actions workflow builds the same package.
+
+### Linux
 
 To compile, you need a basic c++ toolchain, and satisfy all dependences which are on BUILD-DEPENDS file. Then, just:
 

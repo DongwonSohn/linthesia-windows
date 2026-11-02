@@ -1,0 +1,27 @@
+Local macOS port build record
+
+Upstream: https://github.com/linthesia/linthesia (main downloaded 2026-10-24)
+Compiler: Zig 0.17.0 for aarch64-macos (official ziglang.org archive)
+SDK: Apple's CLTools_macOSNMOS_SDK.pkg, MacOSX26.5.sdk extracted with pkgutil --expand-full
+SDK SHA256: 5f044578cd78a3a9b9c965a42d56bad609ee5d252e1d4e6aa7c42fc3f35fee7b
+SDL2 2.32.10, SDL2_ttf 2.24.0, SDL2_image 2.8.12 from official libsdl-org GitHub DMGs.
+
+Set ZIG, SDKROOT, LINTHESIA_FRAMEWORKS to absolute paths, then run:
+bash build-macos-local.sh
+
+Use a writable, locally extracted SDK because the script creates a LocalFrameworks symlink.
+The frameworks can be obtained from ../Linthesia.app/Contents/Frameworks.
+This compiles build-macos/linthesia. To update the app, copy it into
+../Linthesia.app/Contents/MacOS/linthesia and run:
+codesign --force --deep --sign - ../Linthesia.app
+Keep the bundled Contents/Resources and Contents/Frameworks directories.
+
+Changes: conditional CoreMIDI/AudioToolbox backend, built-in DLS synthesizer,
+local settings storage, macOS executable/resource paths, safe database path.
+Linux ALSA/GSettings code remains behind platform conditionals.
+
+Verified: arm64 build, ad-hoc code signature, CLI version/help, Fur Elise MIDI
+parser (4 tracks, 294 notes, 63.36 seconds), computer-keyboard note input queue,
+built-in DLS synthesizer initialization and three-second playback (43 events,
+14 notes). Desktop app with its embedded Fur Elise reached its render/update
+loop successfully. GUI visual inspection was unavailable through the tool.

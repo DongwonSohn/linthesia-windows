@@ -70,6 +70,11 @@ public:
     return m_device_id;
   }
 
+  void DisableDevice() {
+    m_device_id = -1;
+    m_preview_on = false;
+  }
+
   const ButtonState WholeTile() const {
     return whole_tile;
   }

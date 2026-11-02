@@ -1,0 +1,3 @@
+Notices for dependencies bundled inside the official SDL2_ttf 2.24.0 Windows binaries.
+Copied unmodified from the official SDL2_ttf 2.24.0 source release:
+https://www.libsdl.org/projects/SDL_ttf/release/SDL2_ttf-2.24.0.tar.gz

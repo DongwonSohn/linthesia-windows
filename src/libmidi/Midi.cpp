@@ -10,6 +10,7 @@
 #include "MidiEvent.h"
 #include "MidiTrack.h"
 #include "MidiUtil.h"
+#include "../PlatformPaths.h"
 
 #include <fstream>
 #include <map>
@@ -19,7 +20,7 @@ using namespace std;
 
 Midi Midi::ReadFromFile(const string &filename) {
 
-  fstream file(filename.c_str(), ios::in | ios::binary);
+  fstream file(LinthesiaNativePath(filename).c_str(), ios::in | ios::binary);
 
   if (!file.good())
     throw MidiError(MidiError_BadFilename);

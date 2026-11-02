@@ -6,27 +6,33 @@
 // Adaptation to GNU/Linux by Oscar Aceña
 // See COPYING for license information
 
-#include <netinet/in.h>
+#include <cstdint>
 
 #include "MidiUtil.h"
 
 using namespace std;
 
 unsigned long BigToSystem32(unsigned long x) {
-  return ntohl(x);
+  const uint32_t value = static_cast<uint32_t>(x);
+  const unsigned char* bytes = reinterpret_cast<const unsigned char*>(&value);
+  return (static_cast<uint32_t>(bytes[0]) << 24) |
+         (static_cast<uint32_t>(bytes[1]) << 16) |
+         (static_cast<uint32_t>(bytes[2]) << 8) |
+         static_cast<uint32_t>(bytes[3]);
 }
 
 unsigned short BigToSystem16(unsigned short x) {
-  return ntohs(x);
+  const unsigned char* bytes = reinterpret_cast<const unsigned char*>(&x);
+  return static_cast<unsigned short>((bytes[0] << 8) | bytes[1]);
 }
 
 unsigned long parse_variable_length(istream &in) {
-  register unsigned long value = in.get();
+  unsigned long value = in.get();
 
   if (in.good() && (value & 0x80) ) {
     value &= 0x7F;
 
-    register unsigned long c;
+    unsigned long c;
     do {
       c = in.get();
       value = (value << 7) + (c & 0x7F);

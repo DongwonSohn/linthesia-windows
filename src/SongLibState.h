@@ -25,7 +25,7 @@ class SongLibState : public GameState {
 
 public:
     SongLibState(const SharedState &state): 
-    m_state(state){
+    m_state(state), m_skip_next_mouse_up(false){
     }
 
 protected:

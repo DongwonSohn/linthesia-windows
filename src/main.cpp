@@ -8,7 +8,9 @@
 
 #include <string>
 #include <locale>
+#if !defined(__APPLE__) && !defined(_WIN32)
 #include <libintl.h>
+#endif
 
 #include "OSGraphics.h"
 #include "StringUtil.h"
@@ -24,21 +26,30 @@
 #include "TitleState.h"
 #include "DpmsThread.h"
 #include "SongLibState.h"
+#include "PlatformPaths.h"
+#include "TextWriter.h"
 
 #include "libmidi/Midi.h"
 #include "libmidi/MidiUtil.h"
 
+#ifndef _WIN32
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <libgen.h>
+#include <limits.h>
+#endif
 
 #include <iostream>
-#include <libgen.h>
 
 #include <SDL_image.h>
 
+#if defined(__APPLE__) || defined(_WIN32)
+#define _(String) (String)
+#else
 #define _(String) gettext (String)
+#endif
 
 using namespace std;
 
@@ -46,7 +57,7 @@ GameStateManager* state_manager;
 SDL_Window* sdl_window;
 bool main_loop_running = true;
 
-char *sqlite_db_str;
+std::string sqlite_db_str;
 sqlite3 *db;
 
 const static string friendly_app_name = STRING("Linthesia " <<
@@ -349,7 +360,6 @@ void DrawingArea::on_configure_event() {
   state_manager->SetStateDimensions(get_width(), get_height());
   state_manager->Update(window_state.JustActivated());
 
-  glEnd();
 }
 
 void DrawingArea::on_expose_event(SDL_WindowEvent& event) {
@@ -393,11 +403,17 @@ bool cmdOptionExists(char** begin, char** end, const std::string & option)
 }
 
 std::string getExePath()
-// https://stackoverflow.com/questions/23943239/how-to-get-path-to-current-exe-file-on-linux
 {
-  char result[ PATH_MAX ];
-  ssize_t count = readlink( "/proc/self/exe", result, PATH_MAX );
-  return std::string( dirname(result), (count > 0) ? count : 0 );
+#if defined(__APPLE__) || defined(_WIN32)
+  return LinthesiaExecutableDirectory();
+#else
+  char result[PATH_MAX];
+  ssize_t count = readlink("/proc/self/exe", result, sizeof(result) - 1);
+  if (count < 0)
+    return ".";
+  result[count] = '\0';
+  return dirname(result);
+#endif
 }
 
 void print_version() {
@@ -413,28 +429,31 @@ void show_help() {
      << "\t" << "--min-key" << " " << _("to define min key") << endl
      << "\t" << "--max-key" << " " << _("to define max key") << endl
      << "\t" << "--lib-path" << " " << _("to define directory for music library") << endl
-     << "\t" << "--reset-lib-path" << " " << _("reset directory for music library to "MUSICDIR) << endl
+     << "\t" << "--reset-lib-path" << " " << _("reset directory for music library to ") << MUSICDIR << endl
      << "\t" << "-h, --help" << " " << _("show this help") << endl
      << "\t" << "-v, --version" << " " << _("show linthesia version") << endl
      << endl;
 }
 
 bool has_invalid_options(int argc, char *argv[]) {
-  for (char **pargv = argv; *pargv != NULL; pargv++) {
-    char i = *pargv[0];
-    char* j = *pargv+1;
-    if ((i == '-') && (strcmp(j, "f") != 0 &&
-                       strcmp(j, "w") != 0 &&
-                       strcmp(j, "W") != 0 &&
-                       strcmp(j, "h") != 0 &&
-                       strcmp(j, "v") != 0 &&
-                       strcmp(j, "-min-key") != 0 &&
-                       strcmp(j, "-max-key") != 0 &&
-                       strcmp(j, "-help") != 0 &&
-                       strcmp(j, "-lib-path") != 0 &&
-                       strcmp(j, "-reset-lib-path") != 0 &&
-                       strcmp(j, "-version") != 0)) {
-      cout << _("Invalid option: ") << *pargv << endl << endl;
+  bool filename_seen = false;
+  for (int index = 1; index < argc; ++index) {
+    const string option(argv[index]);
+    if (option == "-f" || option == "--lib-path" ||
+        option == "--min-key" || option == "--max-key") {
+      if (index + 1 >= argc || argv[index + 1][0] == '-' || argv[index + 1][0] == '\0') {
+        cout << _("Missing value for option: ") << option << endl << endl;
+        return true;
+      }
+      ++index;
+    } else if (option == "-w" || option == "-W" || option == "-h" ||
+               option == "--help" || option == "-v" || option == "--version" ||
+               option == "--reset-lib-path") {
+      continue;
+    } else if (!option.empty() && option[0] != '-' && !filename_seen) {
+      filename_seen = true;
+    } else {
+      cout << _("Invalid option: ") << option << endl << endl;
       return true;
     }
   }
@@ -443,16 +462,13 @@ bool has_invalid_options(int argc, char *argv[]) {
 
 int main(int argc, char *argv[]) {
   setlocale (LC_ALL, "");
+#if !defined(__APPLE__) && !defined(_WIN32)
   textdomain("linthesia");
+#endif
 
   try {
 
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
-      throw LinthesiaSDLError(_("error initializing SDL"));
-
     string file_opt("");
-
-    UserSetting::Initialize();
 
     int show_help_exit_status = 0;
     bool invalid_options = has_invalid_options(argc, argv);
@@ -471,8 +487,23 @@ int main(int argc, char *argv[]) {
       return 0;
     }
 
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+      throw LinthesiaSDLError(_("error initializing SDL"));
+
+    UserSetting::Initialize();
+
     if (cmdOptionExists(argv, argv+argc, "-f"))
       file_opt = string(getCmdOption(argv, argv + argc, "-f"));
+    else {
+      // Explorer supports dropping a MIDI file directly onto Linthesia.exe.
+      for (int index = 1; index < argc; ++index) {
+        const string option(argv[index]);
+        if (option == "--lib-path" || option == "--min-key" || option == "--max-key")
+          ++index;
+        else if (!option.empty() && option[0] != '-')
+          file_opt = option;
+      }
+    }
 
     bool windowed = cmdOptionExists(argv, argv+argc, "-w");
     bool fullscreen = cmdOptionExists(argv, argv+argc, "-W");
@@ -521,29 +552,36 @@ int main(int argc, char *argv[]) {
     string tmp_user_db_str = UserSetting::Get(SQLITE_DB_KEY, "");
 
     if (tmp_user_db_str.empty() ) {
-      struct stat st;
-
       // no user pref : let's create one !
+#if defined(__APPLE__) || defined(_WIN32)
+      sqlite_db_str = UserSetting::DataDirectory();
+#else
       struct passwd *pw = getpwuid(getuid());
-      sqlite_db_str = strcat(pw->pw_dir, "/.local/linthesia");
-      if ( stat(sqlite_db_str, &st) == -1) {
-        const int dir_err = mkdir(sqlite_db_str, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+      if (!pw || !pw->pw_dir)
+        throw LinthesiaError("Cannot find the user home directory.");
+      const std::string local_dir = std::string(pw->pw_dir) + "/.local";
+      mkdir(local_dir.c_str(), 0700);
+      sqlite_db_str = local_dir + "/linthesia";
+      struct stat st;
+      if (stat(sqlite_db_str.c_str(), &st) == -1) {
+        const int dir_err = mkdir(sqlite_db_str.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         if (-1 == dir_err)
         {
-          fprintf(stderr, _("Error creating directory : %s\n"), sqlite_db_str);
+          fprintf(stderr, _("Error creating directory : %s\n"), sqlite_db_str.c_str());
           exit(1);
         }
       }
-      sqlite_db_str = strcat(sqlite_db_str, "/music.sqlite");
+#endif
+      sqlite_db_str += "/music.sqlite";
       UserSetting::Set(SQLITE_DB_KEY, sqlite_db_str);
     } else {
         // user pref exist : let's use it !
-        sqlite_db_str = (char*) tmp_user_db_str.c_str();
+        sqlite_db_str = tmp_user_db_str;
     }
 
-    if (sqlite3_open(sqlite_db_str, &db)) {
+    if (sqlite3_open(sqlite_db_str.c_str(), &db)) {
       fprintf(stderr, _("Can't open database: %s\n"), sqlite3_errmsg(db));
-      return(0);
+      throw LinthesiaError(string("Cannot open the statistics database: ") + sqlite3_errmsg(db));
     } else {
       // fprintf(stderr, _("Opened database successfully\n"));
       sqlite3_close(db);
@@ -578,6 +616,7 @@ int main(int argc, char *argv[]) {
     if (sdl_window == NULL)
       throw LinthesiaSDLError(_("Could not create window"));
 
+    SDL_SetWindowMinimumSize(sdl_window, 800, 600);
 
     SDL_GLContext gl_context = SDL_GL_CreateContext(sdl_window);
     if (gl_context == nullptr)
@@ -588,11 +627,12 @@ int main(int argc, char *argv[]) {
       SDL_GetWindowSize(sdl_window, &w, &h);
       state_manager = new GameStateManager(w, h);
     }
-    struct stat st;
+#ifndef _WIN32
     chdir (getExePath().c_str());  
+#endif
     
-    if ( !stat((GRAPHDIR +  std::string("/linthesia.png")).c_str(),&st) == 0) {
-      throw LinthesiaError(_("FATAL : File not found : make install not done ?") + 
+    if (!LinthesiaIsFile(GRAPHDIR + std::string("/linthesia.png"))) {
+      throw LinthesiaError(_("Required graphics file is missing: ") +
                             std::string(GRAPHDIR) +  std::string("/linthesia.png"));
     }
 
@@ -609,6 +649,7 @@ int main(int argc, char *argv[]) {
       throw LinthesiaSDLImageError(_("Unable to load image ") + path + _("! SDL_image Error"));
 
     SDL_SetWindowIcon(sdl_window, image);
+    SDL_FreeSurface(image);
 
     // Init DHMS thread once for the whole program
     DpmsThread* dpms_thread = new DpmsThread();
@@ -677,9 +718,15 @@ int main(int argc, char *argv[]) {
     midiStop();
     window_state.Deactivate();
 
+    delete state_manager;
+    state_manager = nullptr;
+    delete dpms_thread;
+    TextWriter::ReleaseFonts();
+    TTF_Quit();
+    IMG_Quit();
     SDL_GL_DeleteContext(gl_context);
     SDL_DestroyWindow(sdl_window);
-    delete dpms_thread;
+    sdl_window = nullptr;
     SDL_Quit();
 
     return 0;

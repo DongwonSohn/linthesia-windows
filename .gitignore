@@ -29,3 +29,9 @@ config.h.in
 depcomp
 install-sh
 ltmain.sh
+
+# Local native and portable builds
+build-windows/
+build-windows-cross/
+build-macos/
+dist/

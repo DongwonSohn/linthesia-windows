@@ -1,3 +1,4 @@
+# Linux/Meson development packages. For Windows see WINDOWS-BUILD.ko.md.
 libasound2-dev
 libsqlite3-dev
 libsdl2-dev
