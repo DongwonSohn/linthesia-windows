@@ -38,19 +38,10 @@ jobs:
       - name: Check packaged executable without MSYS2 on PATH
         shell: pwsh
         run: |
-          $package = Join-Path $env:LINTHESIA_SOURCE 'dist/windows-x64/Linthesia'
-          # Exercise a relocated Unicode path and a different working directory.
-          $relocated = Join-Path $env:RUNNER_TEMP 'Linthesia 테스트'
-          Copy-Item -LiteralPath $package -Destination $relocated -Recurse
-          $exe = Join-Path $relocated 'Linthesia.exe'
-          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
-          foreach ($arguments in @(@('--version'), @('--help'))) {
-            $process = Start-Process -FilePath $exe -ArgumentList $arguments -WorkingDirectory $env:RUNNER_TEMP -Wait -PassThru
-            if ($process.ExitCode -ne 0) { throw "Smoke check failed: $arguments ($($process.ExitCode))" }
-          }
-          # A value is required after -f; this must exit instead of crashing.
-          $process = Start-Process -FilePath $exe -ArgumentList '-f' -WorkingDirectory $env:RUNNER_TEMP -Wait -PassThru
-          if ($process.ExitCode -ne 1) { throw "Invalid arguments did not return exit code 1." }
+          & "$env:LINTHESIA_SOURCE/tests/check-windows-package.ps1" `
+            -PackageRoot (Join-Path $env:LINTHESIA_SOURCE 'dist/windows-x64/Linthesia') `
+            -PortableCorePath (Join-Path $env:LINTHESIA_SOURCE 'build-windows/PortableCore.exe') `
+            -ObjdumpPath '${{ steps.msys2.outputs.msys2-location }}/ucrt64/bin/objdump.exe'
       - uses: actions/upload-artifact@v4
         with:
           name: Linthesia-windows-x64

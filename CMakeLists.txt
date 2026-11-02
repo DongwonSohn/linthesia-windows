@@ -53,6 +53,23 @@ target_link_libraries(Linthesia PRIVATE
   SDL2::SDL2 SDL2_image::SDL2_image SDL2_ttf::SDL2_ttf
   SQLite3::SQLite3 OpenGL::GL Threads::Threads winmm shell32 ole32)
 
+# Keep the portable package's top level to one launcher and one app folder.
+# The launcher must run before any of the application's DLLs are loaded.
+add_executable(LinthesiaLauncher WIN32 windows/Launcher.cpp windows/Linthesia.rc)
+target_include_directories(LinthesiaLauncher PRIVATE windows)
+target_compile_definitions(LinthesiaLauncher PRIVATE
+  NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00)
+target_link_libraries(LinthesiaLauncher PRIVATE user32 shell32)
+set_target_properties(LinthesiaLauncher PROPERTIES
+  OUTPUT_NAME Linthesia
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/launcher")
+if(MINGW)
+  target_link_options(LinthesiaLauncher PRIVATE -static -static-libgcc -static-libstdc++)
+elseif(MSVC)
+  set_property(TARGET LinthesiaLauncher PROPERTY
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
   add_executable(WindowsSmoke
@@ -77,10 +94,11 @@ if(BUILD_TESTING)
     "${CMAKE_CURRENT_SOURCE_DIR}/music/Default/Eve ／ 夜は仄か.mid")
 endif()
 
-install(TARGETS Linthesia RUNTIME DESTINATION .)
-install(DIRECTORY graphics/ DESTINATION graphics
+install(TARGETS LinthesiaLauncher RUNTIME DESTINATION .)
+install(TARGETS Linthesia RUNTIME DESTINATION app)
+install(DIRECTORY graphics/ DESTINATION app/graphics
   FILES_MATCHING PATTERN "*.tga" PATTERN "*.ttf" PATTERN "*.png")
-install(DIRECTORY music/ DESTINATION music)
-install(FILES COPYING DESTINATION .)
-install(DIRECTORY windows/licenses/ DESTINATION licenses)
-install(FILES WINDOWS-BUILD.ko.md DESTINATION . RENAME README-ko.md)
+install(DIRECTORY music/ DESTINATION app/music)
+install(FILES COPYING DESTINATION app)
+install(DIRECTORY windows/licenses/ DESTINATION app/licenses)
+install(FILES WINDOWS-BUILD.ko.md DESTINATION app RENAME README-ko.md)

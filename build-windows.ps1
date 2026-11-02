@@ -13,6 +13,7 @@ $toolBin = Join-Path $ucrtRoot 'bin'
 $buildRoot = Join-Path $sourceRoot 'build-windows'
 $distRoot = Join-Path $sourceRoot 'dist\windows-x64'
 $stageRoot = Join-Path $distRoot 'Linthesia'
+$appRoot = Join-Path $stageRoot 'app'
 $zipPath = Join-Path $distRoot 'Linthesia-windows-x64.zip'
 $cmake = Join-Path $toolBin 'cmake.exe'
 $objdump = Join-Path $toolBin 'objdump.exe'
@@ -77,13 +78,13 @@ try {
     # system DLLs come from the OS; no MSYS2 installation is needed to run.
     $pending = New-Object 'System.Collections.Generic.Queue[string]'
     $visited = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-    $pending.Enqueue((Join-Path $stageRoot 'Linthesia.exe'))
+    $pending.Enqueue((Join-Path $appRoot 'Linthesia.exe'))
     # SDL_image may load PNG support dynamically in some package versions.
     foreach ($extra in @('libpng16-16.dll', 'zlib1.dll')) {
         $extraPath = Join-Path $toolBin $extra
         if (Test-Path -LiteralPath $extraPath) {
-            Copy-Item -LiteralPath $extraPath -Destination $stageRoot -Force
-            $pending.Enqueue((Join-Path $stageRoot $extra))
+            Copy-Item -LiteralPath $extraPath -Destination $appRoot -Force
+            $pending.Enqueue((Join-Path $appRoot $extra))
         }
     }
     while ($pending.Count -gt 0) {
@@ -101,7 +102,7 @@ try {
                 (Test-Path -LiteralPath (Join-Path $env:SystemRoot "System32\$dllName"))) {
                 continue
             }
-            $destination = Join-Path $stageRoot $dllName
+            $destination = Join-Path $appRoot $dllName
             if (-not (Test-Path -LiteralPath $destination)) {
                 $dependency = Join-Path $toolBin $dllName
                 if (-not (Test-Path -LiteralPath $dependency)) {
@@ -115,10 +116,10 @@ try {
 
     $licenseRoot = Join-Path $ucrtRoot 'share\licenses'
     if (Test-Path -LiteralPath $licenseRoot) {
-        Copy-Item -LiteralPath $licenseRoot -Destination (Join-Path $stageRoot 'licenses') -Recurse
+        Copy-Item -LiteralPath $licenseRoot -Destination (Join-Path $appRoot 'licenses') -Recurse
     }
     if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
-    Compress-Archive -LiteralPath $stageRoot -DestinationPath $zipPath -CompressionLevel Optimal
+    Compress-Archive -LiteralPath @((Join-Path $stageRoot 'Linthesia.exe'), $appRoot) -DestinationPath $zipPath -CompressionLevel Optimal
     Write-Host "Executable: $(Join-Path $stageRoot 'Linthesia.exe')"
     Write-Host "Portable ZIP: $zipPath"
 } finally {

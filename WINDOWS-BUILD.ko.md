@@ -4,8 +4,9 @@ Windows 10 1903 이상 또는 Windows 11의 64비트 PC용입니다.
 
 ## 실행
 
-배포 ZIP을 **모두 압축 해제**한 뒤 `Linthesia/Linthesia.exe`를 더블 클릭하세요.
-`graphics`, `music` 폴더와 DLL 파일들을 실행 파일 옆에 그대로 두어야 합니다.
+배포 ZIP을 **모두 압축 해제**한 뒤 `Linthesia.exe`를 더블 클릭하세요.
+압축을 풀면 `Linthesia.exe`와 `app` 폴더 두 항목만 보입니다.
+DLL, 그래픽, 곡, 라이선스는 `app` 안에 모여 있습니다. `app` 폴더를 실행 파일 옆에 그대로 두세요.
 실행할 PC에는 MSYS2나 개발 도구를 설치할 필요가 없습니다.
 
 프로그램을 켜면 기본 곡 **Eve ／ 夜は仄か**를 자동으로 불러옵니다.
@@ -16,7 +17,7 @@ Space는 일시 정지/재개, Esc는 이전 화면입니다.
 Input에서 장치를 선택할 수 있습니다. 출력 장치가 없거나 소리가 나지 않으면
 Output에서 Microsoft GS Wavetable Synth 또는 연결한 MIDI 음원을 선택하세요.
 
-다른 곡은 `music` 폴더에 `.mid` 또는 `.midi` 파일로 넣을 수 있습니다.
+다른 곡은 `app/music` 폴더에 `.mid` 또는 `.midi` 파일로 넣을 수 있습니다.
 명령 프롬프트에서도 직접 열 수 있습니다.
 
 ```bat
@@ -63,7 +64,7 @@ Linthesia.exe --reset-lib-path
 - `dist/windows-x64/Linthesia-windows-x64.zip`: 다른 Windows PC로 옮길 배포 파일
 
 빌드 스크립트가 필요한 DLL을 재귀적으로 찾아 함께 넣고, 실행에 필요한
-그래픽·폰트·곡·라이선스도 복사합니다. EXE 한 파일만 복사하지 마세요.
+그래픽·폰트·곡·라이선스도 `app` 폴더에 복사합니다. EXE와 `app` 폴더를 함께 옮기세요.
 `build-windows`와 `dist/windows-x64/Linthesia`는 생성 결과이므로 빌드 때 갱신됩니다.
 
 GitHub에 소스를 올린 경우 **Actions → Windows executable**에서도 빌드할 수 있습니다.

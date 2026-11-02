@@ -33,6 +33,10 @@ printf '#define PACKAGE_VERSION "0.8.0-windows"\n' > "$build/config.h"
   "$sdl/lib/libSDL2main.a" "$sdl/lib/libSDL2.dll.a" \
   "$ttf/lib/libSDL2_ttf.dll.a" "$img/lib/libSDL2_image.dll.a" \
   -lopengl32 -lwinmm -lshell32 -lole32 -Wl,--subsystem,windows -o "$build/Linthesia.exe"
+"$ZIG" c++ -target x86_64-windows-gnu -std=c++14 -O2 -static \
+  -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x0a00 \
+  "$src/windows/Launcher.cpp" "$build/Linthesia.res" \
+  -luser32 -lshell32 -Wl,--subsystem,windows -o "$build/LinthesiaLauncher.exe"
 
 # Generate the same portable directory layout as the native Windows build.
 python3 - "$src" "$deps" "$build" <<'PY'
@@ -42,30 +46,32 @@ dist = src / 'dist' / 'windows-x64'
 stage = dist / 'Linthesia'
 if stage.exists():
     shutil.rmtree(stage)
-(stage / 'graphics').mkdir(parents=True)
-(stage / 'licenses').mkdir()
-shutil.copy2(build / 'Linthesia.exe', stage)
+app = stage / 'app'
+(app / 'graphics').mkdir(parents=True)
+(app / 'licenses').mkdir()
+shutil.copy2(build / 'LinthesiaLauncher.exe', stage / 'Linthesia.exe')
+shutil.copy2(build / 'Linthesia.exe', app)
 for path in (src / 'graphics').iterdir():
     if path.suffix.lower() in ('.tga', '.ttf', '.png'):
-        shutil.copy2(path, stage / 'graphics')
-shutil.copytree(src / 'music', stage / 'music')
-shutil.copy2(src / 'COPYING', stage)
-shutil.copy2(src / 'WINDOWS-BUILD.ko.md', stage / 'README-ko.md')
-shutil.copytree(src / 'windows' / 'licenses', stage / 'licenses', dirs_exist_ok=True)
+        shutil.copy2(path, app / 'graphics')
+shutil.copytree(src / 'music', app / 'music')
+shutil.copy2(src / 'COPYING', app)
+shutil.copy2(src / 'WINDOWS-BUILD.ko.md', app / 'README-ko.md')
+shutil.copytree(src / 'windows' / 'licenses', app / 'licenses', dirs_exist_ok=True)
 for name, version in [('SDL2', '2.32.10'), ('SDL2_ttf', '2.24.0'), ('SDL2_image', '2.8.12')]:
     library = deps / (name + '-' + version)
-    shutil.copy2(library / 'x86_64-w64-mingw32' / 'bin' / (name + '.dll'), stage)
-    shutil.copy2(library / 'LICENSE.txt', stage / 'licenses' / (name + '-LICENSE.txt'))
+    shutil.copy2(library / 'x86_64-w64-mingw32' / 'bin' / (name + '.dll'), app)
+    shutil.copy2(library / 'LICENSE.txt', app / 'licenses' / (name + '-LICENSE.txt'))
     readme = library / 'README.txt'
     if readme.exists():
-        shutil.copy2(readme, stage / 'licenses' / (name + '-README.txt'))
-(stage / 'licenses' / 'SQLite.txt').write_text(
+        shutil.copy2(readme, app / 'licenses' / (name + '-README.txt'))
+(app / 'licenses' / 'SQLite.txt').write_text(
     'SQLite 3.54.1 is in the public domain.\nhttps://www.sqlite.org/copyright.html\n', encoding='utf-8')
 archive = dist / 'Linthesia-windows-x64.zip'
 with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as z:
     for path in sorted(stage.rglob('*')):
         if path.is_file():
-            z.write(path, path.relative_to(dist))
+            z.write(path, path.relative_to(stage))
 print('Executable:', stage / 'Linthesia.exe')
 print('Portable ZIP:', archive)
 PY
