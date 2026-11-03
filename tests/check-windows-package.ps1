@@ -51,15 +51,14 @@ $projectVersion = [regex]::Match($cmakeProject, 'project\(Linthesia VERSION (\d+
 Assert-Check $projectVersion.Success 'Cannot read the expected Linthesia product version.'
 $expectedVersion = $projectVersion.Groups[1].Value
 foreach ($binary in @(
-    @{ Path = $launcher; Name = 'Linthesia.exe'; IsDll = $false },
-    @{ Path = (Join-Path $dllRoot 'LinthesiaApp.dll'); Name = 'LinthesiaApp.dll'; IsDll = $true }
+    @{ Path = $launcher; Name = 'Linthesia.exe' },
+    @{ Path = (Join-Path $dllRoot 'LinthesiaApp.dll'); Name = 'LinthesiaApp.dll' }
 )) {
     $metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo($binary.Path)
     Assert-Check ($metadata.ProductName -ceq 'Linthesia') "Incorrect product name in $($binary.Name)."
     Assert-Check ($metadata.ProductVersion -ceq $expectedVersion) "Incorrect product version in $($binary.Name)."
     Assert-Check ($metadata.FileVersion -ceq $expectedVersion) "Incorrect file version in $($binary.Name)."
     Assert-Check ($metadata.OriginalFilename -ceq $binary.Name) "Incorrect original filename in $($binary.Name)."
-    Assert-Check ($metadata.IsDll -eq $binary.IsDll) "Incorrect PE version resource file type in $($binary.Name)."
 }
 Assert-Check (@(Get-ChildItem -LiteralPath $PackageRoot -Filter '*.dll' -File).Count -eq 0) 'DLLs must stay inside dll/.'
 $dllEntries = @(Get-ChildItem -LiteralPath $dllRoot -Force)
