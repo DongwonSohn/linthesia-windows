@@ -30,6 +30,20 @@ Linthesia.exe --reset-lib-path
 설정과 곡 데이터베이스는 `%APPDATA%\Linthesia`에 저장합니다.
 프로그램 폴더 전체를 다른 위치로 옮겨도 그래픽과 기본 곡을 찾습니다.
 
+## 제거
+
+프로그램을 종료한 뒤 압축을 풀었던 폴더를 삭제하면 됩니다.
+설정과 곡 통계도 지우려면 `%APPDATA%\Linthesia`를 삭제하세요.
+데이터베이스 경로를 별도로 지정했다면 해당 파일은 별도로 관리합니다.
+직접 추가한 MIDI 파일은 폴더를 삭제하기 전에 백업하세요.
+
+## Code signing policy
+
+현재 공개된 Windows 릴리즈에는 디지털 서명이 없습니다.
+SignPath Foundation 무료 서명은 신청 승인과 프로젝트 자격 검토 후 적용할 예정입니다.
+[코드 서명 정책](https://github.com/DongwonSohn/linthesia-windows/blob/main/CODE_SIGNING.md)과
+[개인정보 처리 안내](https://github.com/DongwonSohn/linthesia-windows/blob/main/PRIVACY.md)를 참고하세요.
+
 ## 소스에서 EXE 만들기
 
 1. [MSYS2](https://www.msys2.org/)를 설치합니다. 기본 설치 경로는 `C:\msys64`입니다.

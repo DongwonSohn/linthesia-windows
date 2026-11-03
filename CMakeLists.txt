@@ -24,6 +24,8 @@ endif()
 
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/config.h"
   "#pragma once\n#define PACKAGE_VERSION \"${PROJECT_VERSION}-windows\"\n")
+configure_file(windows/LinthesiaVersion.h.in
+  "${CMAKE_CURRENT_BINARY_DIR}/LinthesiaVersion.h" @ONLY)
 
 add_library(Linthesia SHARED
   src/MenuLayout.cpp src/CompatibleSystem.cpp src/StringTile.cpp
@@ -36,7 +38,7 @@ add_library(Linthesia SHARED
   src/DpmsThread.cpp src/FileSelector.cpp
   src/libmidi/MidiEvent.cpp src/libmidi/MidiTrack.cpp
   src/libmidi/Midi.cpp src/libmidi/MidiUtil.cpp
-  windows/AppEntry.cpp)
+  windows/AppEntry.cpp windows/LinthesiaApp.rc)
 set_target_properties(Linthesia PROPERTIES PREFIX "" OUTPUT_NAME LinthesiaApp)
 target_include_directories(Linthesia PRIVATE src windows "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_definitions(Linthesia PRIVATE
@@ -53,7 +55,7 @@ target_link_libraries(Linthesia PRIVATE
 
 # Load the application and runtime DLLs from dll/, keeping resources at the root.
 add_executable(LinthesiaLauncher WIN32 windows/Launcher.cpp windows/Linthesia.rc)
-target_include_directories(LinthesiaLauncher PRIVATE windows)
+target_include_directories(LinthesiaLauncher PRIVATE windows "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_definitions(LinthesiaLauncher PRIVATE
   NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0A00)
 target_link_libraries(LinthesiaLauncher PRIVATE user32 shell32)
@@ -84,7 +86,7 @@ if(BUILD_TESTING)
     tests/portable-core.cpp windows/Linthesia.rc
     src/libmidi/MidiEvent.cpp src/libmidi/MidiTrack.cpp
     src/libmidi/Midi.cpp src/libmidi/MidiUtil.cpp)
-  target_include_directories(PortableCore PRIVATE src windows)
+  target_include_directories(PortableCore PRIVATE src windows "${CMAKE_CURRENT_BINARY_DIR}")
   target_compile_definitions(PortableCore PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
   add_test(NAME portable-core COMMAND PortableCore
     "${CMAKE_CURRENT_SOURCE_DIR}/music/Keyboard_Classics/Fur_Elise-Beethoven.mid"

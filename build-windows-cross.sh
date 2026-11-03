@@ -21,15 +21,32 @@ for input in "$sdl/lib/libSDL2.dll.a" "$ttf/lib/libSDL2_ttf.dll.a" "$img/lib/lib
   [[ -f "$input" ]] || { printf 'Missing dependency: %s\n' "$input" >&2; exit 1; }
 done
 mkdir -p "$build"
-printf '#define PACKAGE_VERSION "0.8.0-windows"\n' > "$build/config.h"
+# Keep runtime and PE resource versions in sync with the native CMake build.
+python3 - "$src" "$build" <<'PY'
+import pathlib, re, sys
+src, build = map(pathlib.Path, sys.argv[1:])
+match = re.search(r'project\(Linthesia VERSION (\d+)\.(\d+)\.(\d+)\b',
+                  (src / 'CMakeLists.txt').read_text(encoding='utf-8'))
+if not match:
+    raise SystemExit('Cannot read Linthesia version from CMakeLists.txt')
+version = '.'.join(match.groups())
+(build / 'config.h').write_text(
+    '#pragma once\n#define PACKAGE_VERSION "' + version + '-windows"\n', encoding='utf-8')
+header = (src / 'windows/LinthesiaVersion.h.in').read_text(encoding='utf-8')
+for name, value in zip(('MAJOR', 'MINOR', 'PATCH'), match.groups()):
+    header = header.replace('@PROJECT_VERSION_' + name + '@', value)
+header = header.replace('@PROJECT_VERSION@', version)
+(build / 'LinthesiaVersion.h').write_text(header, encoding='utf-8')
+PY
 "$ZIG" cc -target x86_64-windows-gnu -O2 -c "$sqlite/sqlite3.c" -o "$build/sqlite3.o"
-"$ZIG" rc /fo "$build/Linthesia.res" /i "$src/windows" -- "$src/windows/Linthesia.rc"
+"$ZIG" rc /fo "$build/Linthesia.res" /i "$src/windows" /i "$build" -- "$src/windows/Linthesia.rc"
+"$ZIG" rc /fo "$build/LinthesiaApp.res" /i "$src/windows" /i "$build" -- "$src/windows/LinthesiaApp.rc"
 "$ZIG" c++ -target x86_64-windows-gnu -std=c++14 -O2 -shared \
   -DNOMINMAX -DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x0a00 \
   -Wno-inconsistent-missing-override \
   -I "$sdl/include/SDL2" -I "$ttf/include/SDL2" -I "$img/include/SDL2" \
   -I "$sqlite" -I "$build" -I "$src/src" \
-  "$src"/src/*.cpp "$src"/src/libmidi/*.cpp "$src/windows/AppEntry.cpp" "$build/sqlite3.o" \
+  "$src"/src/*.cpp "$src"/src/libmidi/*.cpp "$src/windows/AppEntry.cpp" "$build/sqlite3.o" "$build/LinthesiaApp.res" \
   "$sdl/lib/libSDL2.dll.a" \
   "$ttf/lib/libSDL2_ttf.dll.a" "$img/lib/libSDL2_image.dll.a" \
   -lopengl32 -lwinmm -lshell32 -lole32 -o "$build/LinthesiaApp.dll"

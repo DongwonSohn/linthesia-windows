@@ -29,6 +29,17 @@ The script builds with CMake, runs the parser and Windows integration checks,
 and writes `dist/windows-x64/Linthesia-windows-x64.zip` with its runtime DLLs.
 The `Windows executable` GitHub Actions workflow builds the same package.
 
+### Code signing policy
+
+The published Windows releases are currently **unsigned**. SignPath Foundation
+signing is planned and is subject to application approval and project eligibility
+review. See the [Code signing policy](CODE_SIGNING.md) for signing scope, maintainer
+roles, and approval rules, and the [Privacy policy](PRIVACY.md) for local data use.
+
+To remove the portable Windows app, close it and delete its extracted folder.
+To also remove saved settings and song statistics, delete `%APPDATA%\Linthesia`.
+Back up your own MIDI files before deleting either location.
+
 ### Linux
 
 To compile, you need a basic c++ toolchain, and satisfy all dependences which are on BUILD-DEPENDS file. Then, just:

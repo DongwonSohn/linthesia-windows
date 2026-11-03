@@ -1,0 +1,4 @@
+#define LINTHESIA_FILE_TYPE VFT_DLL
+#define LINTHESIA_FILE_DESCRIPTION "Linthesia application"
+#define LINTHESIA_ORIGINAL_FILENAME "LinthesiaApp.dll"
+#include "VersionInfo.rc"

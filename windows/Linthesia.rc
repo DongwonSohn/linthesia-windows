@@ -1,3 +1,8 @@
 #include <windows.h>
 
 1 RT_MANIFEST "Linthesia.manifest"
+
+#define LINTHESIA_FILE_TYPE VFT_APP
+#define LINTHESIA_FILE_DESCRIPTION "Linthesia MIDI piano game"
+#define LINTHESIA_ORIGINAL_FILENAME "Linthesia.exe"
+#include "VersionInfo.rc"

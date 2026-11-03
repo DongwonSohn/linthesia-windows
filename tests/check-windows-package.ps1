@@ -44,6 +44,23 @@ foreach ($folder in @('dll', 'graphics', 'music', 'licenses', 'manual')) {
         "Required package folder is missing: $folder"
 }
 Assert-Check (Test-Path -LiteralPath (Join-Path $dllRoot 'LinthesiaApp.dll') -PathType Leaf) 'Application DLL is missing.'
+# Signing policies identify our binaries by these PE resource fields. Check the
+# installed files rather than build outputs so packaging cannot drop metadata.
+$cmakeProject = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../CMakeLists.txt') -Raw
+$projectVersion = [regex]::Match($cmakeProject, 'project\(Linthesia VERSION (\d+\.\d+\.\d+)\b')
+Assert-Check $projectVersion.Success 'Cannot read the expected Linthesia product version.'
+$expectedVersion = $projectVersion.Groups[1].Value
+foreach ($binary in @(
+    @{ Path = $launcher; Name = 'Linthesia.exe'; IsDll = $false },
+    @{ Path = (Join-Path $dllRoot 'LinthesiaApp.dll'); Name = 'LinthesiaApp.dll'; IsDll = $true }
+)) {
+    $metadata = [Diagnostics.FileVersionInfo]::GetVersionInfo($binary.Path)
+    Assert-Check ($metadata.ProductName -ceq 'Linthesia') "Incorrect product name in $($binary.Name)."
+    Assert-Check ($metadata.ProductVersion -ceq $expectedVersion) "Incorrect product version in $($binary.Name)."
+    Assert-Check ($metadata.FileVersion -ceq $expectedVersion) "Incorrect file version in $($binary.Name)."
+    Assert-Check ($metadata.OriginalFilename -ceq $binary.Name) "Incorrect original filename in $($binary.Name)."
+    Assert-Check ($metadata.IsDll -eq $binary.IsDll) "Incorrect PE version resource file type in $($binary.Name)."
+}
 Assert-Check (@(Get-ChildItem -LiteralPath $PackageRoot -Filter '*.dll' -File).Count -eq 0) 'DLLs must stay inside dll/.'
 $dllEntries = @(Get-ChildItem -LiteralPath $dllRoot -Force)
 Assert-Check ($dllEntries.Count -gt 1) 'Bundled application dependencies are missing.'
@@ -137,7 +154,7 @@ try {
     Assert-Check ($probe.Stdout.Contains('Portable core checks passed')) 'Parser probe output was not forwarded.'
     $missing = Invoke-Launcher ('"missing-song.mid" "{0}"' -f $secondMidi) 1
     Assert-Check (-not [string]::IsNullOrWhiteSpace($missing.Stderr)) 'Missing MIDI error output was not forwarded.'
-    Write-Host 'DLL-only package layout, dependency confinement, resource paths, Unicode arguments, working directory, output, and exit codes passed.'
+    Write-Host 'DLL-only package layout, PE product metadata, dependency confinement, resource paths, Unicode arguments, working directory, output, and exit codes passed.'
 } finally {
     $env:PATH = $oldPath
     if (Test-Path -LiteralPath $temporaryRoot) {
